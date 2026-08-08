@@ -65,12 +65,12 @@ def numeric_views(s):
     """
     Try to read the column as numbers
     """
-    coerced = pd.to_numeric(s, errors="coerce")
-    present = s.notna()
+    coerced = pd.to_numeric(s, errors="coerce") # convert to numeric, invalids become NaN
+    present = s.notna() 
     n_present = int(present.sum())
     n_numeric = int((coerced.notna() & present).sum())
     invalid = n_present - n_numeric
-    frac = (n_numeric / n_present) if n_present else 0.0
+    frac = (n_numeric / n_present) if n_present else 0.0 
     return coerced, frac, invalid
 
 
