@@ -16,17 +16,22 @@ SEP = ","  # comma delimited
 NA_TOKEN = "?"  # missing vals
 
 CAT_CARD_THRESH = 10  # Continuous vs Categorical decision
+NUMERIC_FRAC_THRESH = 0.9  # Continuous vs Categorical decision
 
 FORCE_CONT = []
 FORCE_CAT = []
 
 USE_TOTAL_FOR_PCT = True
 
+PLOTS_PER_ROW = 2
+ROWS_PER_PAGE = 3   # 9 plots per page
+BAR_MAX_LEVELS = 25  # max number of bars in a bar plot
+
 
 # Stage 1: Load file and label columns
 
 # pd.read_csv reads the file into a DataFrame (a table).
-#   sep=SEP              -> split each line on tabs
+#   sep=SEP              -> split each line on commas
 #   header=None          -> the file has NO header row, so treat row 0 as data
 #   na_values=[NA_TOKEN] -> turn every '?' into NaN (a proper missing value)
 #   keep_default_na=True -> also treat blanks/"NaN" text as missing, as usual
@@ -56,13 +61,17 @@ target_col = "T"
 # Stage 2: Classify each feature as continuous or categorical
 
 
-def is_numeric_col(s):
+def numeric_views(s):
     """
-    Returns True if the column s is numeric.
+    Try to read the column as numbers
     """
     coerced = pd.to_numeric(s, errors="coerce")
-    became_bad = coerced.isna() & s.notna()   # was a value before, is NaN now
-    return became_bad.sum() == 0
+    present = s.notna()
+    n_present = int(present.sum())
+    n_numeric = int((coerced.notna() & present).sum())
+    invalid = n_present - n_numeric
+    frac = (n_numeric / n_present) if n_present else 0.0
+    return coerced, frac, invalid
 
 
 def classify(col):
@@ -71,10 +80,10 @@ def classify(col):
         return "continuous"
     if col in FORCE_CAT:
         return "categorical"
-    if not is_numeric_col(s):
-        return "categorical"                       # has text -> categorical
-    # count of distinct non-missing values
-    card = s.dropna().nunique()
+    coerced, frac, _ = numeric_views(s)
+    if frac < NUMERIC_FRAC_THRESH:
+        return "categorical"  # mostly text -> categorical
+    card = coerced.dropna().nunique()
     return "categorical" if card <= CAT_CARD_THRESH else "continuous"
 
 
@@ -88,14 +97,15 @@ categorical_feats = [c for c in feature_cols if types[c] == "categorical"]
 summary = []
 for c in feature_cols:
     s = raw[c]
+    _, _, invalid = numeric_views(s)
     non_null = s.dropna()
     summary.append({
         "Feature": c,
         "AssignedType": types[c],
         "RawDtype": str(s.dtype),
-        "Numeric?": is_numeric_col(s),
         "Card": non_null.nunique(),
         "%Miss": round(100 * s.isna().sum() / N, 2),
+        "Invalid": invalid,
         "Sample": ", ".join(map(str, non_null.unique()[:5])),
     })
 summary_df = pd.DataFrame(summary)
@@ -145,12 +155,11 @@ def categorical_row(col):
     # Default everything to NaN in case a feature has fewer than 2 distinct values.
     mode1 = mode1_f = mode2 = mode2_f = np.nan
     m1p = m2p = np.nan
-
-    if len(vc) >= 1:  # there is at least one value
-        # most common value + its count
+    
+    if len(vc) >= 1:
         mode1, mode1_f = vc.index[0], int(vc.iloc[0])
         m1p = round(100 * mode1_f / base, 2)
-    if len(vc) >= 2:  # there is a second distinct value
+    if len(vc) >= 2:
         mode2, mode2_f = vc.index[1], int(vc.iloc[1])
         m2p = round(100 * mode2_f / base, 2)
 
@@ -188,85 +197,62 @@ cont_dqr.to_csv("continuous_dqr.csv", index=False, header=False)
 cat_dqr.to_csv("categorical_dqr.csv", index=False, header=False)
 target_dqr.to_csv("target_dqr.csv", index=False, header=False)
 
-# Stage 4: Draw the plots
+# Stage 5: Draw the plots
 
 
-def grid(n):
+def save_grid(feats, path, kind):
     """
-    Work out a near-square grid (rows, cols) that can hold n plots.
-    """
-    ncols = int(np.ceil(np.sqrt(n)))
-    nrows = int(np.ceil(n / ncols))
-    return nrows, ncols
-
-
-def save_hist(feats, path):
-    """Draw a histogram for every continuous feature into one grid, save as PDF."""
-    if not feats:
-        return
-    nr, nc = grid(len(feats))
-    # Create a figure with nr x nc small sub-plots. figsize is in inches;
-    # we scale it by the grid size so each little plot stays legible.
-    fig, axes = plt.subplots(nr, nc, figsize=(nc * 2.6, nr * 2.2))
-    # .reshape(-1) flattens the 2D grid of axes into a simple 1D list so we can
-    # loop through it easily alongside the feature names.
-    axes = np.array(axes).reshape(-1)
-    for ax, c in zip(axes, feats):
-        ax.hist(pd.to_numeric(raw[c], errors="coerce").dropna(), bins=20)
-        ax.set_title(c, fontsize=7)
-        ax.tick_params(labelsize=5)
-        ax.set_xlabel("value", fontsize=5)
-        ax.set_ylabel("freq", fontsize=5)
-    # Any leftover empty cells in the grid get switched off so they are blank.
-    for ax in axes[len(feats):]:
-        ax.axis("off")
-    fig.tight_layout()  # stop labels overlapping
-    with PdfPages(path) as pdf:  # write the whole figure into one PDF
-        pdf.savefig(fig)
-    plt.close(fig)  # free the memory
-
-
-def save_bars(feats, path, max_levels=25):
-    """
-    Draw a bar plot (value counts) for every categorical feature into one grid.
+    Draw one small plot per feature, arranged as a matrix, PAGINATED across
+    multiple pages of a single PDF so nothing is cramped.
+      kind="hist" -> histogram (continuous)
+      kind="bar"  -> bar plot of value counts (categorical)
     """
     if not feats:
         return
-    nr, nc = grid(len(feats))
-    fig, axes = plt.subplots(nr, nc, figsize=(nc * 2.8, nr * 2.4))
-    axes = np.array(axes).reshape(-1)
-    for ax, c in zip(axes, feats):
-        # Count how often each category appears, keep the top max_levels.
-        vc = raw[c].dropna().astype(str).value_counts().head(max_levels)
-        ax.bar(range(len(vc)), vc.values)  # one bar per category
-        ax.set_xticks(range(len(vc)))
-        ax.set_xticklabels(vc.index, rotation=90,
-                           fontsize=4)  # category labels
-        ax.set_title(c, fontsize=7)
-        ax.tick_params(labelsize=5)
-        ax.set_ylabel("freq", fontsize=5)
-    for ax in axes[len(feats):]:
-        ax.axis("off")
-    fig.tight_layout()
+    per_page = PLOTS_PER_ROW * ROWS_PER_PAGE
     with PdfPages(path) as pdf:
-        pdf.savefig(fig)
-    plt.close(fig)
-
-
-# Histograms for continuous features, bar plots for categorical features.
-save_hist(continuous_feats,  "histograms.pdf")
-save_bars(categorical_feats, "barplots.pdf")
-
-# The target figure. T is a classification label (categorical), so we draw a
-# single bar plot of how many instances fall into each class.
-fig, ax = plt.subplots(figsize=(4, 3))
+        # step through the features in chunks of per_page
+        for start in range(0, len(feats), per_page):
+            chunk = feats[start:start + per_page]
+            fig, axes = plt.subplots(ROWS_PER_PAGE, PLOTS_PER_ROW,
+                                     figsize=(PLOTS_PER_ROW * 3.6,
+                                              ROWS_PER_PAGE * 3.0))
+            axes = np.array(axes).reshape(-1)      # flatten grid to a 1-D list
+            for ax, c in zip(axes, chunk):
+                if kind == "hist":
+                    ax.hist(pd.to_numeric(raw[c], errors="coerce").dropna(),
+                            bins=30)
+                    ax.set_xlabel("value", fontsize=9)
+                else:  # bar
+                    vc = (raw[c].dropna().astype(str)
+                          .value_counts().head(BAR_MAX_LEVELS))
+                    ax.bar(range(len(vc)), vc.values)
+                    ax.set_xticks(range(len(vc)))
+                    ax.set_xticklabels(vc.index, rotation=90, fontsize=7)
+                    ax.set_xlabel("category", fontsize=9)
+                ax.set_title(c, fontsize=12)
+                ax.set_ylabel("frequency", fontsize=9)
+                ax.tick_params(labelsize=8)
+            # blank out any unused cells on the last page
+            for ax in axes[len(chunk):]:
+                ax.axis("off")
+            fig.tight_layout()
+            pdf.savefig(fig)
+            plt.close(fig)
+ 
+ 
+save_grid(continuous_feats, "histograms.pdf", kind="hist")
+save_grid(categorical_feats, "barplots.pdf", kind="bar")
+ 
+# Target figure: T is a class label (categorical) -> single bar plot.
+fig, ax = plt.subplots(figsize=(6, 4))
 vc = raw[target_col].dropna().astype(str).value_counts()
 ax.bar(range(len(vc)), vc.values)
 ax.set_xticks(range(len(vc)))
-ax.set_xticklabels(vc.index, rotation=90, fontsize=6)
-ax.set_title("T (target)", fontsize=9)
-ax.set_xlabel("class")
-ax.set_ylabel("freq")
+ax.set_xticklabels(vc.index, rotation=90, fontsize=9)
+ax.set_title("T (target)", fontsize=12)
+ax.set_xlabel("class", fontsize=10)
+ax.set_ylabel("frequency", fontsize=10)
 fig.tight_layout()
 with PdfPages("target_figure.pdf") as pdf:
     pdf.savefig(fig)
