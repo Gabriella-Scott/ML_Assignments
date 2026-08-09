@@ -35,6 +35,12 @@ rows = [
      "Clamp the instances",
      "Isolated values at both ends fall well beyond the interquartile range and would distort scale-sensitive estimates; clamping caps them at sensible bounds while keeping every row and the rest of the distribution intact."),
 
+    #  A2
+    ("A2", "Cardinality",
+     "Card. = 133 distinct levels, by far the highest of any categorical feature (every other categorical has 12 or fewer); the two modes tcp (47.75%) and udp (35.98%) already cover about 84%, leaving a long tail of roughly 131 rare levels.",
+     "Bin the feature into intervals",
+     "The many sparsely populated levels add width and noise while carrying little signal; grouping the rare categories into a single 'other' level keeps the informative categories and brings the cardinality under control."),
+
     #  A3
     ("A3", "Missing Values",
      "% Miss. = 54.85, so more than half the column is absent (Card. = 12 among the present values).",
@@ -47,11 +53,11 @@ rows = [
      "Apply log transformation to the feature",
      "A long right tail pulls the summary statistics away from the bulk of the data; a logarithm reshapes the distribution toward symmetry so the typical values are no longer compressed against the axis."),
     ("A5", "Correlation",
-     "Pearson r = 0.972 with A15 (see correlation_heatmap.pdf).",
+     "The correlation with A15 is 0.97, very close to +1, which the notes describe as a very strong positive correlation, so the two features are effectively redundant.",
      "Remove one of the features",
      "A5 belongs to a tightly correlated group with A8 and A15; because these repeat the same variation, only one representative needs to be retained."),
     ("A5", "Correlation",
-     "Pearson r = 0.964 with A8.",
+     "The correlation with A8 is 0.96, close to +1 (a very strong positive correlation), confirming the two carry almost the same information.",
      "Remove one of the features",
      "The near-linear relationship confirms A5 and A8 duplicate one another within the correlated group, so one is redundant."),
 
@@ -61,19 +67,19 @@ rows = [
      "Apply log transformation to the feature",
      "The heavy upper tail distorts the feature's centre and spread; a log transform evens out the distribution and reduces the tail's dominance."),
     ("A6", "Correlation",
-     "Pearson r = 0.980 with A16.",
+     "The correlation with A16 is 0.98, very close to +1 (a very strong positive correlation), so the two are redundant.",
      "Remove one of the features",
      "The strong correlation shows A6 and A16 largely encode the same information, making one of them redundant."),
     ("A6", "Correlation",
-     "Pearson r = 0.973 with A9.",
+     "The correlation with A9 is 0.97, close to +1 (a very strong positive correlation).",
      "Remove one of the features",
      "A6, A9 and A16 form a mutually correlated group; since they repeat one another, only one should be kept."),
 
     #  A7
     ("A7", "Independent",
-     "Correlation ratio with the target is 0.0049 (near zero); values are uniform on [0,1] with Std. Dev. = 0.2883 (the value expected of a uniform distribution) and Card. = 257,673, one distinct value per row.",
+     "The histogram is flat: a uniform distribution on [0,1] with Std. Dev. = 0.2883 (the value expected of a uniform) and Card. = 257,673, one distinct value per row. The notes state that a uniform distribution may indicate an irrelevant feature, and this one shows no relationship with the target.",
      "Remove the feature",
-     "A uniform, unique-per-row feature with no association to the target behaves like injected random noise, so it cannot aid prediction and risks being fitted as spurious structure."),
+     "A uniform, unique-per-row feature with no relationship to the target behaves like injected random noise, so it carries no information for prediction and risks being fitted as spurious structure."),
 
     #  A8
     ("A8", "Skewness",
@@ -81,7 +87,7 @@ rows = [
      "Apply log transformation to the feature",
      "With most values small and a very long tail, a logarithm compresses the tail and brings the distribution closer to symmetric, giving each value more balanced influence."),
     ("A8", "Correlation",
-     "Pearson r = 0.996 with A15.",
+     "The correlation with A15 is 1.00 (0.996), essentially +1, so the two features are almost perfectly redundant.",
      "Remove one of the features",
      "The pair moves together almost perfectly, so one is redundant; dropping either retains the shared information without the wasted dimension."),
 
@@ -91,13 +97,13 @@ rows = [
      "Apply log transformation to the feature",
      "The large gap between mean and median signals a long tail; a log scale draws in the extreme values so they no longer dominate the feature's behaviour."),
     ("A9", "Correlation",
-     "Pearson r = 0.997 with A16.",
+     "The correlation with A16 is 1.00 (0.997), essentially +1, an almost perfect positive correlation.",
      "Remove one of the features",
      "Two near-perfectly correlated features duplicate the same signal; keeping one preserves the information while removing the redundancy."),
 
     #  A10
     ("A10", "Invalid Values",
-     "1,386 rows (0.538%) hold the non-numeric token 'a' in an otherwise numeric feature; this is what shows up as % Miss. = 0.54 after numeric coercion.",
+     "1,386 rows (0.538%) hold the non-numeric token 'a' in an otherwise numeric feature. Because 'a' is not the '?' missing marker, these are invalid rather than absent, so A10's % Miss. stays 0.00 and the corruption surfaces only as invalid values.",
      "Replace values with missingness",
      "The letter is not a valid measurement and is almost certainly a data-entry or integration error; recoding it as missing removes the corruption while letting the small gap be handled as ordinary missingness."),
 
@@ -183,7 +189,7 @@ rows = [
 
     #  A23
     ("A23", "Correlation",
-     "Pearson r = 0.981 with A26, and the two hold identical values on 99.01% of rows.",
+     "The correlation with A26 is 0.98 (a very strong positive correlation), and the two hold identical values on 99.01% of rows.",
      "Remove one of the features",
      "These are effectively the same feature recorded twice; keeping both would double-count the same signal, so one should be removed."),
     ("A23", "Cardinality",
@@ -201,7 +207,7 @@ rows = [
      "Apply normalisation to the feature",
      "When features differ by many orders of magnitude, the large-scale ones dominate distance and scale-based computations; normalising brings all features onto a shared range so each contributes comparably."),
 
-    # ---- A25 ----
+    #  A25
     ("A25", "Missing Values",
      "% Miss. = 0.51 on a large-scale feature (values up to about 4.3e9); Median = 0.",
      "Impute the values with the median",
@@ -217,6 +223,12 @@ rows = [
      "Bin the feature into intervals",
      "Like A23, this feature takes only a few clustered values, so discretising into bins matches its categorical character better than a continuous scale."),
 
+    # ---- A27 ----
+    ("A27", "Correlation",
+     "A27 is very strongly correlated with A28 (r = 0.94) and A29 (r = 0.92), both close to +1, so the three features move together as near-duplicates.",
+     "Remove one of the features",
+     "A27, A28 and A29 form a tightly correlated group that carries nearly the same variation, so only one representative needs to be retained and the others are redundant."),
+
     # ---- A28 ----
     ("A28", "Missing Values",
      "% Miss. = 0.51 (Median = 0), matching the shared missingness rate across features.",
@@ -228,6 +240,18 @@ rows = [
      "% Miss. = 0.51 (Median = 0).",
      "Impute the values with the median",
      "Imputing so few values with the median preserves the shape of this skewed feature while retaining every instance."),
+
+    # ---- A30 ----
+    ("A30", "Skewness",
+     "The histogram is unimodal and right-skewed: Mean 137.6 sits well above Median 73, with values trailing out to Max. 1,504 against a 3rd Qrt. of only 100.",
+     "Apply log transformation to the feature",
+     "A right skew pulls the mean above the median and lets the upper tail dominate the feature; a logarithm draws the tail in and makes the distribution more symmetric so the typical values are better represented."),
+
+    # ---- A31 ----
+    ("A31", "Skewness",
+     "The histogram is unimodal and right-skewed: Mean 121.6 against Median 44, trailing out to Max. 1,500 with a 3rd Qrt. of only 89.",
+     "Apply log transformation to the feature",
+     "The gap between mean and median together with the long upper tail is a clear right skew; a log transform compresses the tail and brings the bulk of the distribution toward symmetry."),
 
     # ---- A32 ----
     ("A32", "Missing Values",
@@ -247,23 +271,29 @@ rows = [
 
     # ---- A34 ----
     ("A34", "Correlation",
-     "Pearson r = 0.980 with A45.",
+     "The correlation with A45 is 0.98, close to +1 (a very strong positive correlation).",
      "Remove one of the features",
      "The very high correlation shows A34 and A45 carry nearly the same signal, making one redundant."),
     ("A34", "Correlation",
-     "Pearson r = 0.954 with A39.",
+     "The correlation with A39 is 0.95, a very strong positive correlation.",
      "Remove one of the features",
      "A34, A39 and A45 form a mutually correlated block of count features; only one representative needs to be retained."),
 
     # ---- A36 ----
     ("A36", "Correlation",
-     "Pearson r = 0.962 with A37.",
+     "The correlation with A37 is 0.96, close to +1 (a very strong positive correlation).",
      "Remove one of the features",
      "The two count-like features track each other closely; keeping one avoids double-counting the same variation."),
 
+    # ---- A38 ----
+    ("A38", "Correlation",
+     "A38 is very strongly correlated with A37 (r = 0.91), close to +1, so the two count features largely repeat the same information.",
+     "Remove one of the features",
+     "A38 sits in the correlated block of count features with A36 and A37; because it duplicates their variation, keeping a single representative is sufficient."),
+
     # ---- A39 ----
     ("A39", "Correlation",
-     "Pearson r = 0.961 with A45.",
+     "The correlation with A45 is 0.96, a very strong positive correlation.",
      "Remove one of the features",
      "A39 and A45 sit in a correlated block of count features and largely repeat each other, so one can be dropped."),
 
@@ -279,9 +309,9 @@ rows = [
 
     # ---- A41 ----
     ("A41", "No information",
-     "Mode 0 covers 98.74% of rows (Card. = 4), and its association with the target is near zero (Cramer's V = 0.056).",
+     "Mode 0 covers 98.74% of rows (Card. = 4), so the bar plot is dominated by a single level and the feature is almost constant, leaving virtually no variation between instances.",
      "Remove the feature",
-     "One level dominates almost entirely, so the feature is effectively constant, and its negligible target association confirms it offers no useful signal."),
+     "One level dominates almost entirely, so the feature is effectively constant and offers no useful signal to separate instances."),
 
     # ---- A42 ----
     ("A42", "Correlation",
@@ -295,6 +325,12 @@ rows = [
      "Bin the feature into intervals",
      "A low-cardinality, mostly-zero feature is better described by a few intervals than a continuous scale, which would imply detail the data does not contain."),
 
+    # ---- A44 ----
+    ("A44", "Correlation",
+     "A44 is very strongly correlated with A37 (r = 0.91) and A36 (r = 0.90), both close to +1.",
+     "Remove one of the features",
+     "A44 belongs to the same correlated block of count features and repeats the signal already present in A36 and A37, so it is redundant and one of the group can be dropped."),
+
     # ---- A45 ----
     ("A45", "Missing Values",
      "% Miss. = 0.51 (Median = 4).",
@@ -303,9 +339,9 @@ rows = [
 
     # ---- A46 ----
     ("A46", "No information",
-     "Mode 0 covers 98.11% of rows (Card. = 3), and association with the target is very weak (Cramer's V = 0.076).",
+     "Mode 0 covers 98.11% of rows (Card. = 3), so the bar plot is dominated by a single level, leaving almost no variation in the feature.",
      "Remove the feature",
-     "The overwhelming dominance of a single level leaves almost no variation to learn from, and the weak target association shows it does not help prediction."),
+     "The overwhelming dominance of a single level leaves almost no variation to learn from, so the feature does not help distinguish instances."),
 
     # ---- T ----
     ("T", "Missing Values",
@@ -313,7 +349,7 @@ rows = [
      "Remove the instances",
      "A missing target cannot be imputed without fabricating ground truth, and at 0.1% the affected rows can be dropped with negligible loss."),
     ("T", "Skewness",
-     "10 classes with a dominant majority: Mode '0.0' at 55.47% while the 2nd Mode '9.0' is only 11.18% and the remaining classes trail to about 1%.",
+     "10 classes with a dominant majority: Mode '0.0' at 55.52% while the 2nd Mode '9.0' is only 11.19% and the remaining classes trail to about 1%.",
      "Oversample the minority class(es)",
      "A skewed class distribution biases learning toward the majority and can make a model look accurate while ignoring rare classes; oversampling the minority classes rebalances the training distribution so every class is represented."),
 ]

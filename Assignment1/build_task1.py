@@ -21,10 +21,12 @@ NUMERIC_FRAC_THRESH = 0.9  # Continuous vs Categorical decision
 FORCE_CONT = []
 FORCE_CAT = []
 
-USE_TOTAL_FOR_PCT = True
+USE_TOTAL_FOR_PCT = False  # Mode % / 2nd Mode % use the PRESENT (non-missing)
+# count as denominator, matching the lecturer's DQR example (MARITAL STATUS:
+# mode freq 99 with 61.2% missing shown as 51.0% = 99/194, i.e. present-based).
 
 PLOTS_PER_ROW = 2
-ROWS_PER_PAGE = 3   # 9 plots per page
+ROWS_PER_PAGE = 3   # 2 x 3 = 6 plots per page
 BAR_MAX_LEVELS = 25  # max number of bars in a bar plot
 
 
@@ -65,12 +67,13 @@ def numeric_views(s):
     """
     Try to read the column as numbers
     """
-    coerced = pd.to_numeric(s, errors="coerce") # convert to numeric, invalids become NaN
-    present = s.notna() 
+    coerced = pd.to_numeric(
+        s, errors="coerce")  # convert to numeric, invalids become NaN
+    present = s.notna()
     n_present = int(present.sum())
     n_numeric = int((coerced.notna() & present).sum())
     invalid = n_present - n_numeric
-    frac = (n_numeric / n_present) if n_present else 0.0 
+    frac = (n_numeric / n_present) if n_present else 0.0
     return coerced, frac, invalid
 
 
@@ -131,7 +134,11 @@ def continuous_row(col):
     return {
         "Feature": col,
         "Count": N,  # total rows
-        "% Miss.": round(100 * s.isna().sum() / N, 2),  # percent missing
+        # % Miss. counts only the '?' tokens (the spec's definition of missing),
+        # exactly like the categorical table. Non-numeric INVALID tokens (e.g.
+        # A10's 'a') are NOT missing, so they are excluded here and captured as
+        # an Invalid Values issue in Task 2 instead.
+        "% Miss.": round(100 * raw[col].isna().sum() / N, 2),
         "Card.": v.nunique(),  # distinct values
         "Min.": v.min(),
         "1st Qrt.":  v.quantile(0.25),  # 25th percentile
@@ -155,7 +162,7 @@ def categorical_row(col):
     # Default everything to NaN in case a feature has fewer than 2 distinct values.
     mode1 = mode1_f = mode2 = mode2_f = np.nan
     m1p = m2p = np.nan
-    
+
     if len(vc) >= 1:
         mode1, mode1_f = vc.index[0], int(vc.iloc[0])
         m1p = round(100 * mode1_f / base, 2)
@@ -239,11 +246,11 @@ def save_grid(feats, path, kind):
             fig.tight_layout()
             pdf.savefig(fig)
             plt.close(fig)
- 
- 
+
+
 save_grid(continuous_feats, "histograms.pdf", kind="hist")
 save_grid(categorical_feats, "barplots.pdf", kind="bar")
- 
+
 # Target figure: T is a class label (categorical) -> single bar plot.
 fig, ax = plt.subplots(figsize=(6, 4))
 vc = raw[target_col].dropna().astype(str).value_counts()
