@@ -18,7 +18,7 @@ NA_TOKEN = "?"  # missing vals
 CAT_CARD_THRESH = 10  # Continuous vs Categorical decision
 NUMERIC_FRAC_THRESH = 0.9  # Continuous vs Categorical decision
 
-FORCE_CONT = []
+FORCE_CONT = [] 
 FORCE_CAT = []
 
 USE_TOTAL_FOR_PCT = False  # Mode % / 2nd Mode % use the PRESENT (non-missing)
@@ -77,7 +77,7 @@ def numeric_views(s):
     return coerced, frac, invalid
 
 
-def classify(col):
+def classify(col): 
     s = raw[col]
     if col in FORCE_CONT:
         return "continuous"
