@@ -2,6 +2,7 @@
 \IEEEoverridecommandlockouts
 
 \usepackage{graphicx}
+\usepackage{subcaption}
 \usepackage{booktabs}
 \usepackage{url}
 \usepackage{amsmath}
@@ -12,9 +13,6 @@
 \fancyhf{}
 \cfoot{\thepage}
 \renewcommand{\headrulewidth}{0pt}
-
-\newcommand{\figplaceholder}[1]{\fbox{\parbox[c][#1][c]{0.92\columnwidth}{\centering figure placeholder}}}
-\newcommand{\figplaceholderwide}[1]{\fbox{\parbox[c][#1][c]{0.95\textwidth}{\centering figure placeholder}}}
 
 \begin{document}
 
@@ -68,7 +66,7 @@ The goal of this assignment is to build, tune and compare two classification
 models on the dataset. The first model is $k$-nearest neighbours (kNN), and the
 second is a classification tree. The two algorithms rest on different
 assumptions, so the same data quality issue does not affect them equally, and
-pre-processing was therefore decided separately for each model.
+pre-processing was decided separately for each model.
 
 For both models the control parameters were tuned by grid search on a pool of
 30\,000 instances, held disjoint from the data used for evaluation. The models
@@ -77,7 +75,7 @@ were then evaluated by ten-fold stratified cross-validation on the remaining
 which gives every target level equal weight. The tree reached 0.5749 against
 0.4975 for kNN and won on every fold. The ordering reverses on plain accuracy,
 so the better model depends on the value placed on the rare attack categories.
-A third figure frames both scores: 15.7\% of instances share a feature vector
+A third number frames both scores: 15.7\% of instances share a feature vector
 with an instance carrying a different label, so a macro-averaged F1 above
 0.7759 is unreachable.
 
@@ -140,7 +138,7 @@ split tests a single feature, in contrast to oblique trees, where a split uses
 a linear combination of features \cite{wickramarachchi2016}.
 
 kNN and the classification tree place their cost at opposite ends. kNN performs
-its distance calculations at prediction time, so the cost of a prediction grows
+its distance calculatoins at prediction time, so the cost of a prediction grows
 with the size of the stored dataset \cite{kelleher2015}. A classification tree
 does most of its work during training, and a prediction only requires following
 a path from the root to a leaf.
@@ -213,13 +211,13 @@ the majority class to dominate the vote \cite{kelleher2015}. Distance weighting
 reduces this effect but does not remove it, since a sufficiently imbalanced dataset 
 can still favour the majority class \cite{kelleher2015}. The Worms class is the most extreme example, holding less than 0.1\% of
 instances. A Worms query is unlikely to hold a Worms instance among its nearest
-neighbours. Both models therefore need an explicit correction, and kNN is
+neighbours.Both models therefore need an explicit correction, and kNN is
 expected to need it more.
 
-Three features are nominal, where the proto feature carries 133 levels, against 13 for
-service and 9 for state, so proto dominates whatever encoding is chosen.
+Three features are nominal. The proto feature carries 133 levels, against 13
+for service and nine for state, so proto dominates whatever encoding is chosen.
 Categorical similarity is measured by overlap or by an index such as Jaccard
-\cite{topic3}, \cite{rodden2000}. One-hot encoding produces sparse binary
+\cite{topic3,kelleher2015}. One-hot encoding produces sparse binary
 features, in which most pairwise comparisons are co-absences, and the recommended
 index in that situation is one that ignores co-absences \cite{kelleher2015}. For
 the tree, one-hot encoding splits the impurity reduction available from proto
@@ -252,7 +250,8 @@ scikit-learn\footnote{\url{https://scikit-learn.org}} version 1.7.2, with
 pandas\footnote{\url{https://pandas.pydata.org}} version 2.3.0 for data handling
 and NumPy\footnote{\url{https://numpy.org}} version 2.2.6 for numeric work. kNN
 uses the KNeighborsClassifier class, and the tree uses the
-DecisionTreeClassifier class, an optimised implementation of the CART algorithm.
+DecisionTreeClassifier class, an optimised implementation of the
+classification and regression tree algorithm.
 
 Each model was implemented as a two-stage pipeline. The first stage is a column
 transformer that applies one set of pre-processing steps to the numeric
@@ -279,6 +278,26 @@ much a decision as transforming it, and every such decision is justified below.
 Table~\ref{tab:decisions} lists the decision taken for each issue under each
 model, and the reasoning behind each row follows in the text.
 
+\begin{table}[t]
+\caption{Pre-processing decision taken for each data quality issue}
+\label{tab:decisions}
+\centering
+\begin{tabular}{l l l}
+\toprule
+Issue & $k$-nearest neighbours & Classification tree \\
+\midrule
+Unique identifier      & removed            & removed \\
+Differing numeric ranges & quantile transformation & not treated \\
+Correlated features    & not treated        & not treated \\
+Large positive outliers & not treated       & not treated \\
+Missing service values & explicit level     & explicit level \\
+Skew class distribution & distance weighting & balanced class weight \\
+Nominal features       & one-hot encoding   & one-hot encoding \\
+Conflicting target levels & not treated     & not treated \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsubsection{Shared Cleaning}
 Four cleaning rules were applied before either pipeline, but only one changed
 the data. The identifier was removed, reducing the dataset from 44 columns to
@@ -298,6 +317,26 @@ training fold, with unknown levels ignored. This prevents levels that are
 missing from a training fold from causing errors when transforming its test fold. 
 Both models therefore use the same feature space, as the tuned tree also uses 
 one-hot encoding.
+
+The numeric features are scaled for kNN, for the reason given in
+Section~\ref{sec:expectations}. The choice among scalers was measured rather
+than asserted. Standardisation subtracts the mean and divides by the standard
+deviation, which suits a feature whose original distribution is normal
+\cite{topic3}. The numeric features here are heavily right-skewed, so
+standardisation leaves the large values large. A quantile transformation
+instead maps each feature onto a uniform distribution through its empirical
+ranks, bounding every feature to the same interval whatever the shape of the
+original. On the tuning pool the quantile transformation reached a macro F1 of
+0.4465 against 0.4170 for standardisation,a gap of roughly three standard
+deviations. Robust scaling reached 0.4452, which sits inside the fold
+variation, so the quantile transformation is reported as selected rather than
+as better.
+
+The missing service values are encoded as an explicit level rather than
+imputed, following the argument in Section~\ref{sec:expectations} that the
+absence is systematic and therefore carries information.
+
+\subsubsection{Issues Deliberately Left Untreated}
 
 The numeric features are not scaled for the tree, for the reason given in
 Section~\ref{sec:expectations}: a monotone rescaling cannot change a partition
@@ -332,7 +371,7 @@ since the estimator supports neither fractional instance weights \cite{topic4}
 nor surrogate splitting \cite{wang1997}.
 
 No resampling was applied. Balanced class weighting reweights the minority
-classes without removing majority instances or creating additional minority
+classes without removing majority instances or creating aditional minority
 samples, and resampling could place duplicate instances in both training and
 test folds, which would inflate the cross-validation results.
 
@@ -349,7 +388,6 @@ Section~\ref{sec:metrics} motivates the performance metrics.
 Section~\ref{sec:analysis} describes the evaluation and the statistical
 comparison.
 
-% Here
 \subsection{Control Parameter Tuning}
 \label{sec:tuning}
 
@@ -389,9 +427,12 @@ values of $k$ under both weighting schemes, so that selection holds. Others sit
 inside the noise. A value of three for $k$ scored 0.4671 $\pm$ 0.0147 against
 0.4644 $\pm$ 0.0052 for a value of one, and a depth of 15 scored 0.5324 $\pm$
 0.0266 against 0.5322 for a depth of 20. Both are reported as selected rather
-than as better. Depth 15 remains the sounder choice, because its training macro
-F1 was 0.691 against 0.774 at depth 20 for the same validation score, making it
-the simpler model.
+than as better. Depth 15 remains the sounder choice, because at the selected minimum leaf size
+and pruning value its training macro F1 was 0.691 against 0.774 at depth 20 for
+the same validation score, making it the simpler model. Cost complexity pruning
+made no measurabel difference at all. The four values tested scored between
+0.5231 and 0.5324 against a fold standard deviation of roughly 0.026, so none
+is distinguishable from another.
 
 \begin{table}[t]
 \caption{Control parameters searched and selected}
@@ -419,15 +460,30 @@ Pruning       & 0, 1e-5, 1e-4, 1e-3               & 1e-4 \\
 \end{tabular}
 \end{table}
 
-Figure~\ref{fig:tuning} shows how macro F1 responds to the main control
-parameters. The kNN curve falls steadily beyond $k$ of five, which is the
-expectation of Section~\ref{sec:expectations} appearing directly in the tuning
-data: a wider neighbourhood lets the majority class take the vote. The tree shows the opposite failure at the other end of its range. At a depth of
-5 the training and validation curves sit together at roughly 0.32, an
-unambiguous underfit, and past a depth of 15 the training curve climbs steadily
-while the validation curve stays flat. Cost complexity pruning made no
-measurable difference, with all four values tested falling inside each other's
-error bars.
+Figure~\ref{fig:tuning} shows how macro F1 responds to the two main control
+parameters, with the remaining parameters held fixed so that each trend is
+visible in isolation. The kNN curve falls steadily beyond $k$ of five, which is
+the expectation of Section~\ref{sec:expectations} appearing directly in the
+tuning data, since a wider neighbourhood lets the majority class take the vote.
+Manhattan also beat Euclidean at every value of $k$ under both weighting
+schemes. The tree fails at the other end of its range. At a depth of five the
+training and validation curves sit together at roughly 0.32, an unambiguous
+underfit, and past a depth of 15 the training curve climbs steadily while the
+validation curve stays flat.
+
+\begin{figure*}[t]
+\centering
+\begin{subfigure}[b]{0.45\textwidth}
+\includegraphics[width=\textwidth]{figures/knn_k_curve.png}
+\caption{number of neighbours}
+\end{subfigure}
+\begin{subfigure}[b]{0.7\textwidth}
+\includegraphics[width=\textwidth]{figures/tree_tuning_curves.png}
+\caption{maximum tree depth}
+\end{subfigure}
+\caption{Macro F1 against the two main control parameters}
+\label{fig:tuning}
+\end{figure*}
 
 \subsection{Performance Metrics}
 \label{sec:metrics}
@@ -467,7 +523,8 @@ Cross-validation reduces this effect by averaging performance across several
 splits \cite{kelleher2015}. Ten folds is also a common choice in practice 
 \cite{kelleher2015}. Stratification keeps the 
 class proportions similar across folds, which is important when the smallest 
-class has only around 15 instances per fold.
+class has only around 15 instances per fold. The cross-validation was run once with a fixed random seed, so that the fold
+assignment is reproducible.
 
 The comparison is paired. One StratifiedKFold object produced the indices and
 both pipelines ran over the same ten splits, so each fold yields two scores
@@ -475,19 +532,19 @@ measured on identical instances, and the ten differences form the sample for the
 test. A plain paired $t$-test would overstate the outcome, because the training
 sets of the folds overlap heavily and the fold scores are therefore not
 independent. The corrected resampled test adds the test-to-train size ratio to
-the variance term, giving $1/k + 1/(k-1)$ for $k$
-folds\footnote{\url{https://scikit-learn.org/stable/auto_examples/model_selection/plot_grid_search_stats.html}}.
+the variance term, which for ten folds is one tenth plus one
+ninth\footnote{\url{https://scikit-learn.org/stable/auto_examples/model_selection/plot_grid_search_stats.html}}.
 Both statistics are reported so that the effect of the correction is visible.
 
 The ambiguity ceiling was identified during a diagnostic check rather than 
-planned in advance. A one-nearest-neighbour model evaluated on its own training 
-data should achieve perfect accuracy because each instance is its own closest 
-neighbour \cite{kelleher2015}. Instead, the model scored 0.853, which indicates 
-that some identical feature vectors have different labels. Instances were then 
+planned in advance. A one-nearest-neighbour model evaluated on its own training data should score
+1.0, because each instance is its own closest neighbour \cite{kelleher2015}.
+Instead the model reached a training macro F1 of 0.853, which shows that
+identical feature vectors carry conflicting target levels. Instances were then 
 grouped by their exact feature vectors. If a group contains multiple labels, the 
 best possible prediction is the majority label for that group. Using this label 
 for every instance gives an upper bound on performance. The full dataset contains 
-153,684 distinct vectors, with 15.7\% of instances belonging to groups with 
+153\,684 distinct vectors, with 15.7\% of instances belonging to groups with 
 conflicting labels. This gives an upper bound of 0.9139 accuracy and 0.7759 macro 
 F1. Since only exact duplicate vectors are considered, the true maximum performance
 may be lower.
@@ -513,20 +570,19 @@ summed across folds \cite{kelleher2015}, so it carries no standard deviation.
 \caption{Aggregate performance over ten folds}
 \label{tab:aggregate}
 \centering
+\small
 \begin{tabular}{l r r}
 \toprule
-Metric & Classification tree & $k$-nearest neighbours \\
+Metric & Tree & kNN \\
 \midrule
-Macro F1            & 0.5749 & 0.4975 \\
-Standard deviation  & 0.0061 & 0.0089 \\
-Avg. class accuracy (AM) & 0.6841 & 0.4912 \\
-Avg. class accuracy (HM) & 0.5711 & 0.2017 \\
-Macro precision     & 0.5540 & 0.5389 \\
-Macro recall        & 0.6841 & 0.4912 \\
-Accuracy            & 0.7481 & 0.7917 \\
-Weighted F1         & 0.7759 & 0.7908 \\
-Fit time per fold (s)     & 11.5 & 2.3 \\
-Predict time per fold (s) & 0.07 & 316.5 \\
+Macro F1                          & 0.5749 $\pm$ 0.0061 & 0.4975 $\pm$ 0.0089 \\
+Macro precision                   & 0.5540 $\pm$ 0.0069 & 0.5389 $\pm$ 0.0113 \\
+Avg. class accuracy (arithmetic)  & 0.6841 & 0.4912 \\
+Avg. class accuracy (harmonic)    & 0.5711 & 0.2017 \\
+Accuracy                          & 0.7481 $\pm$ 0.0055 & 0.7917 $\pm$ 0.0020 \\
+Weighted F1                       & 0.7759 $\pm$ 0.0045 & 0.7908 $\pm$ 0.0020 \\
+Fit time per fold (s)             & 11.5 & 2.3 \\
+Predict time per fold (s)         & 0.07 & 316.5 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -551,7 +607,7 @@ The difference becomes much larger when using the harmonic mean. The tree's
 macro F1 is 1.16 times higher than kNN's, while its harmonic mean of class 
 accuracy is 2.8 times higher, at 0.5711 compared with 0.2017. The arithmetic 
 mean gives a smaller gap of 0.6841 compared with 0.4912. Since the harmonic mean 
-is strongly affected by low values, kNN's recall of only 5.2\% on Worms and 10.6\% 
+is strongly affected by low values, kNN's recall of only 5.2\% on worms and 10.6\% 
 on Backdoor pulls its score down substantially. In contrast, the arithmetic mean 
 allows high recalls such as 92.1\% on Normal and 97.7\% on Generic to hide these 
 weaker classes. The recommended metric therefore also provides the clearest 
@@ -577,20 +633,21 @@ the two call for different remedies.
 \caption{Per-class F1 against the achievable ceiling}
 \label{tab:perclass}
 \centering
+\small
 \begin{tabular}{l r r r}
 \toprule
-Class & Classification tree & $k$-nearest neighbours & Ceiling \\
+Class & Tree & kNN & Ceiling \\
 \midrule
-Normal          & 0.839 & 0.913 & 0.997 \\
-Generic         & 0.987 & 0.985 & 0.997 \\
-Reconnaissance  & 0.823 & 0.672 & 0.913 \\
-Exploits        & 0.637 & 0.675 & 0.817 \\
-Fuzzers         & 0.607 & 0.606 & 0.914 \\
-Worms           & 0.576 & 0.067 & 0.954 \\
-Shellcode       & 0.528 & 0.463 & 0.998 \\
-DoS             & 0.464 & 0.328 & 0.528 \\
-Analysis        & 0.149 & 0.188 & 0.375 \\
-Backdoor        & 0.139 & 0.079 & 0.261 \\
+Normal          & 0.839 $\pm$ 0.010 & 0.913 $\pm$ 0.002 & 0.997 \\
+Generic         & 0.987 $\pm$ 0.001 & 0.985 $\pm$ 0.002 & 0.997 \\
+Reconnaissance  & 0.823 $\pm$ 0.009 & 0.672 $\pm$ 0.009 & 0.913 \\
+Exploits        & 0.637 $\pm$ 0.011 & 0.675 $\pm$ 0.005 & 0.817 \\
+Fuzzers         & 0.607 $\pm$ 0.012 & 0.606 $\pm$ 0.006 & 0.914 \\
+Worms           & 0.576 $\pm$ 0.073 & 0.067 $\pm$ 0.064 & 0.954 \\
+Shellcode       & 0.528 $\pm$ 0.021 & 0.463 $\pm$ 0.040 & 0.998 \\
+DoS             & 0.464 $\pm$ 0.012 & 0.328 $\pm$ 0.007 & 0.528 \\
+Analysis        & 0.149 $\pm$ 0.014 & 0.188 $\pm$ 0.026 & 0.375 \\
+Backdoor        & 0.139 $\pm$ 0.012 & 0.079 $\pm$ 0.016 & 0.261 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -644,7 +701,7 @@ reached 0.5143 against 0.4991 for ordinal encoding under the selected criterion
 and weighting, a margin of roughly one standard deviation, and one-hot won three
 of the four criterion and weighting combinations tested. The reasoning in
 Section~\ref{sec:expectations} overlooked how the split is actually found. The
-best split for an enumerated attribute with $k$ values lies at one of the $k-1$
+best split for an enumerated attribute with $v$ values lies at one of the $v-1$
 positions obtained by ordering the levels by their average class value
 \cite{wang1997}, but OrdinalEncoder orders levels alphabetically. Across 133
 protocol levels the tree was therefore searching 132 cut points in an
@@ -655,6 +712,13 @@ Query cost behaved as the lazy learning argument of
 Section~\ref{sec:algorithms} predicts. kNN needed 316.5 seconds per fold
 against 0.07 seconds for the tree, a difference of more than three orders of
 magnitude \cite{kelleher2015}.
+
+The remaining expectations were settled earlier. The identifier was removed
+before either pipeline, so its expectation went untested, and the expectations
+about scaling and about correlated features were settled during pre-processing.
+In summary, the two expectations that rested on the inductive bias of each
+algorithm held, and the two that rested on how the implementation searches for
+a split did not.
 
 % ============================================================
 \section{Conclusions}
