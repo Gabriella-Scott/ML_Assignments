@@ -1,0 +1,45 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Jupyter / IDE files
+.ipynb_checkpoints/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Data and outputs generated during runs
+# Keep the raw source data tracked if needed; comment out the next lines if you want to commit them.
+data/*.csv
+output/
+
+# Model / experiment artifacts
+*.joblib
+*.pkl
+*.h5
+*.hdf5
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+
+# Optional: local environment config
+.env
+.env.*
