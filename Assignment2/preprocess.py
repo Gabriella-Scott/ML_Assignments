@@ -26,7 +26,7 @@ ROW_MISSING_CUTOFF = 1
 CORR_DROP_THRESHOLD = 0.95
 CORR_GRID = [0.90, 0.95, 0.99]
 
-SUBSAMPLE_N = 30_000 # None uses all rows
+SUBSAMPLE_N = 30_000  # None uses all rows
 RANDOM_STATE = 42
 
 
@@ -98,7 +98,7 @@ def stratified_subsample(X, y, n, seed=RANDOM_STATE):
 def tuning_split(X, y, n=SUBSAMPLE_N, seed=RANDOM_STATE):
     """Create stratified tuning and evaluation pools."""
     if n is None or n >= len(X):
-        #Small development data
+        # Small development data
         print("  WARNING: pools overlap, dataset smaller than subsample size")
         Xr, yr = X.reset_index(drop=True), y.reset_index(drop=True)
         return Xr, yr, Xr, yr
@@ -112,8 +112,9 @@ def tuning_split(X, y, n=SUBSAMPLE_N, seed=RANDOM_STATE):
 def prepare_pools(path=DATA_PATH, subsample_n=SUBSAMPLE_N, verbose=True):
     """Load, clean, and split data."""
     df, log = clean_common(load_raw(path), verbose=verbose)
-    X, y = split_X_y(df) # Split features and target
-    Xt, yt, Xe, ye = tuning_split(X, y, subsample_n) # Split into tuning and evaluation pools
+    X, y = split_X_y(df)  # Split features and target
+    # Split into tuning and evaluation pools
+    Xt, yt, Xe, ye = tuning_split(X, y, subsample_n)
     numeric, nominal = feature_groups(Xt)
     log["n_tune"], log["n_eval"] = len(Xt), len(Xe)
     log["n_numeric"], log["n_nominal"] = len(numeric), len(nominal)
@@ -135,15 +136,17 @@ class CorrelationFilter(BaseEstimator, TransformerMixin):
         self.n_features_in_ = n
 
         with np.errstate(invalid="ignore", divide="ignore"):
-            corr = np.abs(np.nan_to_num(np.atleast_2d(np.corrcoef(A, rowvar=False))))
+            corr = np.abs(np.nan_to_num(
+                np.atleast_2d(np.corrcoef(A, rowvar=False))))
 
         # Average absolute correlation.
         redundancy = (corr.sum(axis=1) - np.diag(corr)) / max(n - 1, 1)
 
         # Strongest pairs first
-        i, j = np.triu_indices(n, k=1) # Upper triangle indices
-        over = corr[i, j] >= self.threshold # pairs exceeding threshold
-        pairs = sorted(zip(corr[i, j][over], i[over], j[over]), reverse=True) # sort by correlation value
+        i, j = np.triu_indices(n, k=1)  # Upper triangle indices
+        over = corr[i, j] >= self.threshold  # pairs exceeding threshold
+        # sort by correlation value
+        pairs = sorted(zip(corr[i, j][over], i[over], j[over]), reverse=True)
 
         keep = np.ones(n, dtype=bool)
         for _, a, b in pairs:
@@ -203,9 +206,9 @@ def build_tree_preprocessor(numeric_cols, nominal_cols, nominal_encoding="ordina
         ("impute", SimpleImputer(strategy="median")),
     ])
 
-    encoder = (OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1) 
+    encoder = (OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
                if nominal_encoding == "ordinal"
-               else OneHotEncoder(handle_unknown="ignore", sparse_output=False)) 
+               else OneHotEncoder(handle_unknown="ignore", sparse_output=False))
 
     nominal = Pipeline([
         ("impute", SimpleImputer(strategy="constant", fill_value="missing")),
@@ -450,11 +453,13 @@ if __name__ == "__main__":
     for thr in CORR_GRID:
         prep = build_knn_preprocessor(numeric, nominal, corr_threshold=thr)
         cols = prep.fit_transform(X, y).shape[1]
-        dropped = prep.named_transformers_["num"].named_steps["decorrelate"].dropped_idx_
+        dropped = prep.named_transformers_[
+            "num"].named_steps["decorrelate"].dropped_idx_
         print(f"corr {thr}: kNN space {cols} cols, dropped "
               f"{[numeric[i] for i in dropped]}")
 
-    tree_cols = build_tree_preprocessor(numeric, nominal).fit_transform(X, y).shape[1]
+    tree_cols = build_tree_preprocessor(
+        numeric, nominal).fit_transform(X, y).shape[1]
     print(f"tree feature space: {tree_cols} columns")
 
     save_outputs()
