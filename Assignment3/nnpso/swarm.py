@@ -88,18 +88,19 @@ def train_swarm(net, data, batch_size, lam, params, max_patterns, seed, algo="ps
     used = swarm.evaluate(Xb, Tb)  # initial pbests
     it = 0
     history = [log_point(net, swarm.gbest, data, lam, used)]  # starting point
+    log_step = max_patterns / config.LOG_POINTS
+    next_log = log_step
 
     while used < max_patterns:
         it += 1
-        # new batch every iters_per_batch its, full batch never changes
         if batch_size != "full" and it % params.iters_per_batch == 0:
             Xb, Tb = next(gen)
             used += swarm.on_new_batch(Xb, Tb)
         swarm.move()
         used += swarm.evaluate(Xb, Tb)
-        if it % config.LOG_EVERY == 0:
+        if used >= next_log:
             history.append(log_point(net, swarm.gbest, data, lam, used))
-
+            next_log += log_step
     return swarm.gbest.copy(), history
 
 

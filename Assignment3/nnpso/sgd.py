@@ -14,19 +14,20 @@ def train_sgd(net, data, batch_size, lam, params, max_patterns, seed):
 
     w = net.init_weights(rng, *config.INIT_RANGE)
     v = np.zeros(net.D)  # momentum buffer (no effect if momentum = 0)
-    used, step = 0, 0
-    history = [log_point(net, w, data, lam, used)]  # starting point for plots
+    used = 0
+    history = [log_point(net, w, data, lam, used)]  # starting point
+    log_step = max_patterns / config.LOG_POINTS
+    next_log = log_step
 
     while used < max_patterns:
         Xb, Tb = next(gen)
-        loss, g = net.gradient(w, Xb, Tb, lam)
-        v = params.momentum * v - params.learning_rate * g  # update momentum buffer
+        _, g = net.gradient(w, Xb, Tb, lam)
+        v = params.momentum * v - params.learning_rate * g
         w += v
         used += len(Xb) * config.GRAD_COST_FACTOR
-        step += 1
-        if step % config.LOG_EVERY == 0:
+        if used >= next_log:
             history.append(log_point(net, w, data, lam, used))
-
+            next_log += log_step
     return w, history
 
 
