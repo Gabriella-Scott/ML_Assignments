@@ -69,8 +69,8 @@ class Network:
         W1, W2 = self.unpack(w)
         A, O = self.forward(w, X)
         N = X.shape[0]
-        d_out = (O - T) / N                              # output delta
-        g2 = d_out.T @ add_bias(A)                       # (K, H+1)
+        d_out = (O - T) / N  # output delta
+        g2 = d_out.T @ add_bias(A)  # (K, H+1)
         d_hid = (d_out @ W2[:, :-1]) * A * \
             (1 - A)       # drop bias col, (N, H)
         g1 = d_hid.T @ add_bias(X)                       # (H, I+1)
@@ -92,7 +92,7 @@ class Network:
         train_acc = accuracy_score(data["y_train"], train_pred)
 
         X_sp, T_sp, y_sp = data[f"X_{split}"], data[f"T_{split}"], data[f"y_{split}"]
-        _, O_sp = self.forward(w, X_sp)  # forward pass on the chosen split
+        _, O_sp = self.forward(w, X_sp)  # forward pass on chosen split
         # cross-entropy for the chosen split
         ce = cross_entropy(O_sp, T_sp)
         pred = O_sp.argmax(axis=1)
@@ -122,13 +122,13 @@ def check_gradient(net, X, T, lam, rng, h=1e-6):
         e = np.zeros(net.D)
         e[j] = h
         num = (net.loss(w + e, X, T, lam) -
-               net.loss(w - e, X, T, lam)) / (2 * h)
+               net.loss(w - e, X, T, lam)) / (2 * h)  # central difference approximation
+        # relative error for this weight
         worst = max(worst, abs(num - g[j]) / (abs(num) + abs(g[j]) + 1e-12))
     return worst
 
 
 if __name__ == "__main__":
-    # quick check: python3 -m nnpso.network (from Assignment3/)
     from nnpso.data import load_data
 
     rng = np.random.default_rng(0)
@@ -138,7 +138,7 @@ if __name__ == "__main__":
 
     w = net.init_weights(rng)
     A, O = net.forward(w, Xb)
-    print("shapes A, O:", A.shape, O.shape)                 # (32, 20), (32, 3)
+    print("shapes A, O:", A.shape, O.shape)  # (32, 20), (32, 3)
     print("softmax rows sum to 1:", np.allclose(O.sum(axis=1), 1))
     print("mask: weights, biases:", int(net.mask.sum()),
           int(net.D - net.mask.sum()))  # 320, 23

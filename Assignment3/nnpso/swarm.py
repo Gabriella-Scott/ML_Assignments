@@ -44,7 +44,7 @@ class PSO:
 
 
 class QSO(PSO):
-    """Quantum PSO: quantum particles around gbest + pbest re-eval on change."""
+    """Quantum PSO: quantum particles around gbest + pbest re-eval on change"""
 
     def __init__(self, net, params, lam, rng):
         super().__init__(net, params, lam, rng)
@@ -105,7 +105,6 @@ def train_swarm(net, data, batch_size, lam, params, max_patterns, seed, algo="ps
 
 
 if __name__ == "__main__":
-    # quick check: python3 -m nnpso.swarm (from Assignment3/)
     from nnpso.data import load_data
     from nnpso.network import Network
 

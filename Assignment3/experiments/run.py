@@ -29,7 +29,7 @@ def run_one(dataset, batch_size, algo, run, lam, max_patterns, params, split="te
     seed = config.BASE_SEED + run
     data = load_data(dataset, seed, config.SPLIT)
     n_in, n_out = data["X_train"].shape[1], data["T_train"].shape[1]
-    net = Network(n_in, config.HIDDEN_UNITS[dataset], n_out)
+    net = Network(n_in, config.HIDDEN_UNITS[dataset], n_out) # init network with input, hidden, and output layers
 
     t0 = time.perf_counter()
     if algo == "sgd":
@@ -116,7 +116,7 @@ def main():
     ]  # list of jobs to run, each a tuple (dataset, batch, algo, run) not already done
     print(f"{len(jobs)} runs to do")
 
-    # run the jobs in parallel using a pool of workers
+    # run the jobs in parallel using pool of workers
     with Pool(args.workers) as pool:
         for i, (row, history) in enumerate(pool.imap_unordered(job, jobs), 1):
             append_rows(RESULTS, [row])

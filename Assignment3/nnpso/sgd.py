@@ -19,7 +19,7 @@ def train_sgd(net, data, batch_size, lam, params, max_patterns, seed):
     log_step = max_patterns / config.LOG_POINTS
     next_log = log_step
 
-    while used < max_patterns:
+    while used < max_patterns: # continue training until max number of patterns is used
         Xb, Tb = next(gen)
         _, g = net.gradient(w, Xb, Tb, lam)
         v = params.momentum * v - params.learning_rate * g

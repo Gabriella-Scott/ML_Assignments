@@ -50,7 +50,7 @@ def batches(X, T, batch_size, rng):
     # endless generator of (X_batch, T_batch)
     n_samples = X.shape[0]
     if batch_size == "full":
-        batch_size = n_samples  # whole train set every time, static problem
+        batch_size = n_samples  # whole train set evry time, static problem
 
     indices = np.arange(n_samples)
     while True:

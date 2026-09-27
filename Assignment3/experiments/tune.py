@@ -35,10 +35,8 @@ def run_pilot(jobs, out_path, workers):
     rows = []
     with Pool(workers) as pool:
         for i, row in enumerate(pool.imap_unordered(pilot_job, jobs), 1):
-            # TODO: append row to rows + append_rows(out_path, [row])
             rows.append(row)
             append_rows(out_path, [row])
-            # TODO: progress print every ~20 runs: i/len(jobs)
             if i % 20 == 0 or i == len(jobs):
                 print(f"Progress: {i}/{len(jobs)}")
     return rows
