@@ -13,8 +13,6 @@ env/
 .ipynb_checkpoints/
 
 # Generated outputs
-results/*
-figures/*
 !results/.gitkeep
 !figures/.gitkeep
 
