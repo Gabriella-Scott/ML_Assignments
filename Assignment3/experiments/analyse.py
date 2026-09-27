@@ -94,7 +94,6 @@ def verdict(cmp, measure, a, c):
         else:
             draws += 1
     return wins, draws, losses
-    pass
 
 
 def latex_table(cmp, measure, path):
@@ -118,51 +117,59 @@ def latex_table(cmp, measure, path):
         f.write("\n".join(lines))
 
 
+TITLES = {"iris": "Iris", "wine": "Wine", "cancer": "Breast cancer"}
+plt.rcParams.update({"font.size": 9, "axes.titlesize": 9,
+                    "legend.fontsize": 8})  # ~ report text size
+
+
 def plot_vs_batch(df, measure, ylabel, path):
-    # 1 subplot per dataset, x = batch size, 1 line per algo, mean +- std
-    fig, axes = plt.subplots(1, len(config.DATASETS), figsize=(7, 2.4))
+    # 1 panel per dataset, mean +- std over runs
+    fig, axes = plt.subplots(1, len(config.DATASETS), figsize=(
+        7.16, 2.1))  # 7.16 in = IEEE text width
     x = np.arange(len(BATCHES))
     for ax, d in zip(axes, config.DATASETS):
         for a in ALGOS:
             sub = df[(df["dataset"] == d) & (df["algo"] == a)]
-            means = sub.groupby("batch")[measure].mean().reindex(BATCHES)
-            stds = sub.groupby("batch")[measure].std().reindex(BATCHES)
-            ax.errorbar(x, means, yerr=stds,
-                        label=NAMES[a], capsize=2, marker="o")
-        ax.set_xticks(x, BATCHES)
-        ax.set_title(d)
+            g = sub.groupby("batch")[measure]
+            ax.errorbar(x, g.mean().reindex(BATCHES), yerr=g.std().reindex(BATCHES),
+                        label=NAMES[a], capsize=2, marker="o", ms=3)
+        ax.set_xticks(x, ["8", "16", "32", "64", "Full"])
+        ax.set_title(TITLES[d])
         ax.set_xlabel("Batch size")
+        if measure == "ce":
+            ax.set_yscale("log")
     axes[0].set_ylabel(ylabel)
-    axes[0].legend(fontsize=7)
-    fig.tight_layout()
+    axes[0].legend(loc="lower right")
+    fig.tight_layout(pad=0.3)
     fig.savefig(path)
     plt.close(fig)
 
 
-def plot_convergence(hist, batches, path):
-    # median val CE vs % of budget, rows = datasets, cols = chosen batch sizes
-    # log point index -> same x for every run (0..LOG_POINTS)
+def plot_convergence(hist, path, batches=("8", "full")):
+    # rows = batch sizes, cols = datasets, median val CE over runs
+    hist = hist.copy()
     hist["point"] = hist.groupby(
-        ["dataset", "batch", "algo", "run"]).cumcount()
-    fig, axes = plt.subplots(len(config.DATASETS), len(batches),
-                             figsize=(7, 6), squeeze=False)
-    for i, d in enumerate(config.DATASETS):
-        for j, b in enumerate(batches):
-            ax = axes[i][j]
+        ["dataset", "batch", "algo", "run"]).cumcount()  # log point 0..100
+    fig, axes = plt.subplots(len(batches), len(
+        config.DATASETS), figsize=(7.16, 3.3), sharex=True)
+    for r, b in enumerate(batches):
+        for c, d in enumerate(config.DATASETS):
+            ax = axes[r, c]
             for a in ALGOS:
                 sub = hist[(hist["dataset"] == d) & (
-                    hist["batch"] == str(b)) & (hist["algo"] == a)]
+                    hist["batch"] == b) & (hist["algo"] == a)]
                 med = sub.groupby("point")["val_ce"].median()
-                ax.plot(med.index, med.values, label=NAMES[a])
-            ax.set_title(f"{d}, batch {b}", fontsize=8)
-            ax.set_yscale("log")  # CE spans orders of magnitude
-            if i == len(config.DATASETS) - 1:
-                ax.set_xlabel("% of budget")
-            if j == 0:
-                ax.set_ylabel("val CE")
-    axes[0][0].legend(fontsize=7)
-    # fig.legend(handles, labels, loc="upper right")
-    fig.tight_layout()
+                ax.plot(med.index, med.values, label=NAMES[a], lw=1)
+            ax.set_yscale("log")  # CE spans ~0.03 to ~8
+            if r == 0:
+                ax.set_title(TITLES[d])
+            if r == len(batches) - 1:
+                ax.set_xlabel("Budget used (%)")
+            if c == 0:
+                lab = "Full batch" if b == "full" else f"Batch size {b}"
+                ax.set_ylabel(f"{lab}\nCross-entropy")
+    axes[-1, 0].legend(loc="upper right")  # empty corner, no overlap
+    fig.tight_layout(pad=0.3)
     fig.savefig(path)
     plt.close(fig)
 
@@ -183,7 +190,7 @@ def main():
 
     plot_vs_batch(df, "ce", "Test CE", f"{FIG_DIR}/ce_vs_batch.pdf")
     plot_vs_batch(df, "acc", "Test accuracy", f"{FIG_DIR}/acc_vs_batch.pdf")
-    plot_convergence(hist, ["8", "full"], f"{FIG_DIR}/convergence.pdf")
+    plot_convergence(hist, f"{FIG_DIR}/convergence.pdf")
 
 
 if __name__ == "__main__":
